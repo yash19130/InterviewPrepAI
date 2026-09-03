@@ -24,7 +24,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Set `GEMINI_API_KEY` in `.env.local` to enable real Gemini JSON generation. Without it, the shared pipeline returns a valid deterministic kit.
+Set `GEMINI_API_KEY` in `.env.local` to enable real Gemini JSON generation. Without it, the shared pipeline returns a valid deterministic kit. Set the Firebase client and Admin SDK variables to enable email/password auth and Firestore-backed kit storage.
 
 ## Commands
 
@@ -34,6 +34,24 @@ npm test
 npm run build
 npm run evaluate -- --input cases.json --output kits.json
 ```
+
+## Web App
+
+The web app uses Firebase email/password authentication and Firestore. Configure the Firebase variables in `.env.local`, enable Email/Password sign-in in Firebase Auth, then run:
+
+```bash
+npm run dev
+```
+
+Routes:
+
+- `/login`
+- `/register`
+- `/dashboard`
+- `/kits/new`
+- `/kits/[id]`
+
+The CLI evaluator remains local and does not require Firebase.
 
 ## Batch Input
 
@@ -61,6 +79,10 @@ The scheduler sorts questions that cover must-have requirements first, then high
 The evaluator uses `src/lib/pipeline/generateKit.ts` as the shared source of truth. It can call Gemini through a JSON adapter, but deterministic validation still assigns stable IDs, checks coverage, fills uncovered must-have gaps, and schedules exactly the requested number of days. If Gemini is unavailable, malformed, quota-limited, or incomplete, the pipeline falls back to deterministic extraction and question generation.
 
 Company research is implemented in `src/lib/research/companyResearch.ts`. It validates URLs, allows only `http` and `https`, blocks local/private hosts, ranks same-origin links by relevance, limits pages and response size, and returns concise notes with source URLs. Research enriches generated questions but never blocks kit creation.
+
+## Edit Preservation
+
+Firestore stores the original generated Appendix A kit, the current edited kit, and UI metadata separately. If a user edits or pins an item, regeneration keeps that item and records the generated replacement as skipped internally. Exported JSON contains only the clean Appendix A kit shape without metadata.
 
 ## Environment
 
