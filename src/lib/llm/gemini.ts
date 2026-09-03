@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import { LlmAdapterError, type GenerateJsonInput, type JsonLlmAdapter } from "./types";
 
 const DEFAULT_MODEL = "gemini-3.6-flash";
@@ -7,8 +6,8 @@ const DEFAULT_INITIAL_DELAY_MS = 500;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
 export class GeminiJsonAdapter implements JsonLlmAdapter {
-  private readonly client: GoogleGenAI;
   private readonly defaultModel: string;
+  private readonly apiKey: string;
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -17,7 +16,7 @@ export class GeminiJsonAdapter implements JsonLlmAdapter {
       throw new LlmAdapterError("GEMINI_API_KEY is not configured.", "MISSING_API_KEY");
     }
 
-    this.client = new GoogleGenAI({ apiKey });
+    this.apiKey = apiKey;
     this.defaultModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
   }
 
@@ -30,19 +29,12 @@ export class GeminiJsonAdapter implements JsonLlmAdapter {
 
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        const response = await withTimeout(
-          this.client.models.generateContent({
-            model,
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: buildJsonPrompt(input.prompt, input.schemaName) }],
-              },
-            ],
-          }),
-          requestTimeoutMs,
-        );
-        const text = response.text ?? "";
+        const text = await generateContentRest({
+          apiKey: this.apiKey,
+          model,
+          prompt: buildJsonPrompt(input.prompt, input.schemaName),
+          timeoutMs: requestTimeoutMs,
+        });
         const parsed = parseJsonLike(text);
 
         return input.schema.parse(parsed);
@@ -124,13 +116,65 @@ function delay(ms: number): Promise<void> {
   });
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => {
-        reject(new LlmAdapterError("Gemini request timed out.", "PROVIDER_ERROR"));
-      }, timeoutMs);
-    }),
-  ]);
+async function generateContentRest({
+  apiKey,
+  model,
+  prompt,
+  timeoutMs,
+}: {
+  apiKey: string;
+  model: string;
+  prompt: string;
+  timeoutMs: number;
+}): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    const body = await response.json();
+
+    if (!response.ok) {
+      throw new LlmAdapterError(
+        body?.error?.message ?? `Gemini request failed with ${response.status}.`,
+        "PROVIDER_ERROR",
+        body,
+      );
+    }
+
+    const text = body?.candidates?.[0]?.content?.parts
+      ?.map((part: { text?: string }) => part.text ?? "")
+      .join("");
+
+    if (!text) {
+      throw new LlmAdapterError("Gemini response did not include text.", "PROVIDER_ERROR", body);
+    }
+
+    return text;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new LlmAdapterError("Gemini request timed out.", "PROVIDER_ERROR", error);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
