@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { buildMockKit } from "../src/lib/pipeline/mock";
+import { generateKit } from "../src/lib/pipeline/generateKit";
 import {
   BatchInputSchema,
   BatchOutputSchema,
@@ -22,20 +22,22 @@ async function main() {
   const rawInput = await readFile(args.input, "utf8");
   const cases = BatchInputSchema.parse(JSON.parse(rawInput));
 
-  const kits: BatchKitResult[] = cases.map((testCase) => {
+  const kits: BatchKitResult[] = [];
+
+  for (const testCase of cases) {
     try {
-      return {
+      kits.push({
         id: testCase.id,
         status: "ok",
-        kit: buildMockKit({
+        kit: await generateKit({
           jd: testCase.jd,
           company_url: testCase.company_url,
           days: testCase.days,
         }),
         error: null,
-      };
+      });
     } catch (error) {
-      return {
+      kits.push({
         id: testCase.id,
         status: "failed",
         kit: null,
@@ -43,9 +45,9 @@ async function main() {
           code: "KIT_GENERATION_FAILED",
           message: error instanceof Error ? error.message : "Unknown generation failure.",
         },
-      };
+      });
     }
-  });
+  }
 
   const output = BatchOutputSchema.parse({
     version: "1.0",
