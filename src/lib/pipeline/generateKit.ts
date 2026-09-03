@@ -1,5 +1,8 @@
 import { createCoverage } from "../deterministic/coverage";
 import { createSchedule } from "../deterministic/schedule";
+import { GeminiJsonAdapter } from "../llm/gemini";
+import type { JsonLlmAdapter } from "../llm/types";
+import { researchCompany, type CompanyResearchResult } from "../research/companyResearch";
 import {
   KitSchema,
   type Flashcard,
@@ -10,12 +13,15 @@ import {
   type RequirementKind,
   type RequirementPriority,
 } from "../schemas";
+import { z } from "zod";
 
 export type GenerateKitInput = {
   jd: string;
   company_url: string;
   days: number;
-  llm?: LlmAdapter;
+  llm?: JsonLlmAdapter;
+  research?: CompanyResearchResult;
+  fetchImpl?: typeof fetch;
   now?: Date;
 };
 
@@ -67,11 +73,6 @@ export type FlashcardDraft = {
   back: string;
 };
 
-export interface LlmAdapter {
-  generateQuestions(requirements: Requirement[]): Promise<QuestionDraft[]>;
-  generateFlashcards(requirements: Requirement[]): Promise<FlashcardDraft[]>;
-}
-
 type SectionName =
   | "requirements"
   | "qualifications"
@@ -86,20 +87,31 @@ type LineWithContext = {
 
 export async function generateKit(input: GenerateKitInput): Promise<Kit> {
   const normalizedInput = normalizeInput(input);
-  const extraction = extractRequirements(normalizedInput.jd);
-  const adapter = input.llm ?? new MockLlmAdapter();
-
-  const questionDrafts = await adapter.generateQuestions(extraction.requirements);
-  const flashcardDrafts = await adapter.generateFlashcards(extraction.requirements);
+  const research = input.research ?? await researchCompany(normalizedInput.companyUrl, {
+    fetchImpl: input.fetchImpl,
+  });
+  const adapter = input.llm ?? createOptionalGeminiAdapter();
+  const extraction = await extractRequirementsWithFallback(normalizedInput.jd, adapter);
+  const questionDrafts = await generateQuestionDrafts({
+    requirements: extraction.requirements,
+    research,
+    adapter,
+  });
+  const flashcardDrafts = await generateFlashcardDrafts({
+    requirements: extraction.requirements,
+    adapter,
+  });
 
   let questions = toQuestions(questionDrafts);
   const firstCoverage = createCoverage(extraction.requirements, questions, 1);
 
   if (firstCoverage.uncovered_requirement_ids.length > 0) {
-    questions = addGapQuestions({
+    questions = await addGapQuestions({
       questions,
       requirements: extraction.requirements,
       uncoveredRequirementIds: firstCoverage.uncovered_requirement_ids,
+      research,
+      adapter,
     });
   }
 
@@ -114,12 +126,14 @@ export async function generateKit(input: GenerateKitInput): Promise<Kit> {
       location: inferLocation(normalizedInput.jd),
       jd_chars: normalizedInput.jd.length,
       researched_at: (input.now ?? new Date()).toISOString(),
-      pages_used: [],
+      pages_used: research.sources.map((source) => source.url),
     },
     company_brief: {
-      summary: "Company research is not implemented in the deterministic foundation pipeline.",
-      what_they_do: "Could not retrieve company data.",
-      sources: [],
+      summary: research.notes || "Could not retrieve company data.",
+      what_they_do: research.sources.length > 0
+        ? research.sources.map((source) => source.title).join("; ")
+        : "Could not retrieve company data.",
+      sources: research.sources.map((source) => source.url),
     },
     role: {
       title: inferRoleTitle(normalizedInput.jd),
@@ -140,6 +154,141 @@ export async function generateKit(input: GenerateKitInput): Promise<Kit> {
   return KitSchema.parse(kit);
 }
 
+const LlmRequirementSchema = z
+  .object({
+    text: z.string().min(1),
+    kind: z.enum(["technical", "behavioural", "domain"]),
+    priority: z.enum(["must", "nice"]),
+  })
+  .strict();
+
+const LlmRequirementsSchema = z.array(LlmRequirementSchema);
+
+const LlmQuestionSchema = z
+  .object({
+    requirement_ids: z.array(z.string()),
+    category: z.enum(["technical", "behavioural", "system-design", "company-fit"]),
+    prompt: z.string(),
+    answer_outline: z.string(),
+    difficulty: z.number().int().min(1).max(3),
+  })
+  .strict();
+
+const LlmQuestionsSchema = z.array(LlmQuestionSchema);
+
+const LlmFlashcardSchema = z
+  .object({
+    requirement_ids: z.array(z.string()),
+    front: z.string(),
+    back: z.string(),
+  })
+  .strict();
+
+const LlmFlashcardsSchema = z.array(LlmFlashcardSchema);
+
+function createOptionalGeminiAdapter(): JsonLlmAdapter | null {
+  try {
+    return new GeminiJsonAdapter();
+  } catch {
+    return null;
+  }
+}
+
+async function extractRequirementsWithFallback(
+  jd: string,
+  adapter: JsonLlmAdapter | null,
+): Promise<RequirementExtractionResult> {
+  if (adapter) {
+    try {
+      const llmRequirements = await adapter.generateJson({
+        schemaName: "RequirementExtraction",
+        schema: LlmRequirementsSchema,
+        prompt: buildRequirementPrompt(jd),
+      });
+      const drafts = llmRequirements.map<RequirementDraft>((requirement) => ({
+        text: requirement.text,
+        kind: requirement.kind,
+        priority: requirement.priority,
+        bucket: bucketForText(requirement.text),
+        source_line: requirement.text,
+      }));
+      const extraction = extractionFromDrafts(jd, drafts);
+
+      if (extraction.requirements.length > 0) {
+        return extraction;
+      }
+    } catch {
+      return extractRequirements(jd);
+    }
+  }
+
+  return extractRequirements(jd);
+}
+
+async function generateQuestionDrafts({
+  requirements,
+  research,
+  adapter,
+}: {
+  requirements: Requirement[];
+  research: CompanyResearchResult;
+  adapter: JsonLlmAdapter | null;
+}): Promise<QuestionDraft[]> {
+  if (adapter) {
+    try {
+      const drafts = await adapter.generateJson({
+        schemaName: "QuestionDrafts",
+        schema: LlmQuestionsSchema,
+        prompt: buildQuestionPrompt(requirements, research),
+      });
+
+      const requirementIds = new Set(requirements.map((requirement) => requirement.id));
+
+      return drafts.map((draft) => ({
+        requirementIds: draft.requirement_ids.filter((id) => requirementIds.has(id)),
+        category: draft.category,
+        prompt: draft.prompt,
+        answerOutline: draft.answer_outline,
+        difficulty: draft.difficulty as 1 | 2 | 3,
+      })).filter((draft) => draft.requirementIds.length > 0);
+    } catch {
+      return deterministicQuestionDrafts(requirements, research);
+    }
+  }
+
+  return deterministicQuestionDrafts(requirements, research);
+}
+
+async function generateFlashcardDrafts({
+  requirements,
+  adapter,
+}: {
+  requirements: Requirement[];
+  adapter: JsonLlmAdapter | null;
+}): Promise<FlashcardDraft[]> {
+  if (adapter) {
+    try {
+      const drafts = await adapter.generateJson({
+        schemaName: "FlashcardDrafts",
+        schema: LlmFlashcardsSchema,
+        prompt: buildFlashcardPrompt(requirements),
+      });
+
+      const requirementIds = new Set(requirements.map((requirement) => requirement.id));
+
+      return drafts.map((draft) => ({
+        requirementIds: draft.requirement_ids.filter((id) => requirementIds.has(id)),
+        front: draft.front,
+        back: draft.back,
+      })).filter((draft) => draft.requirementIds.length > 0);
+    } catch {
+      return deterministicFlashcardDrafts(requirements);
+    }
+  }
+
+  return deterministicFlashcardDrafts(requirements);
+}
+
 export function normalizeInput(input: GenerateKitInput): NormalizedKitInput {
   const jd = input.jd.trim();
   const companyUrl = input.company_url.trim();
@@ -156,6 +305,13 @@ export function normalizeInput(input: GenerateKitInput): NormalizedKitInput {
 }
 
 export function extractRequirements(jd: string): RequirementExtractionResult {
+  return extractionFromDrafts(jd, collectRequirementDrafts(jd));
+}
+
+function extractionFromDrafts(
+  jd: string,
+  drafts: RequirementDraft[],
+): RequirementExtractionResult {
   const gaps: string[] = [];
   const buckets: Record<ExtractionBucket, string[]> = {
     skills: [],
@@ -168,7 +324,6 @@ export function extractRequirements(jd: string): RequirementExtractionResult {
     gaps.push("Job description is empty.");
   }
 
-  const drafts = collectRequirementDrafts(jd);
   const dedupedDrafts = dedupeDrafts(drafts).slice(0, 30);
   const extracted = dedupedDrafts.map<ExtractedRequirement>((draft, index) => {
     buckets[draft.bucket].push(draft.text);
@@ -204,23 +359,21 @@ export function extractRequirements(jd: string): RequirementExtractionResult {
   };
 }
 
-export class MockLlmAdapter implements LlmAdapter {
-  async generateQuestions(requirements: Requirement[]): Promise<QuestionDraft[]> {
-    return requirements.map((requirement) => ({
-      requirementIds: [requirement.id],
-      category: categoryForRequirement(requirement),
-      prompt: questionPromptForRequirement(requirement),
-      answerOutline: answerOutlineForRequirement(requirement),
-      difficulty: difficultyForRequirement(requirement),
-    }));
-  }
+export class MockLlmAdapter implements JsonLlmAdapter {
+  async generateJson<T>(input: { schema: z.ZodType<T>; schemaName: string }): Promise<T> {
+    if (input.schemaName === "RequirementExtraction") {
+      return input.schema.parse([]) as T;
+    }
 
-  async generateFlashcards(requirements: Requirement[]): Promise<FlashcardDraft[]> {
-    return requirements.map((requirement) => ({
-      requirementIds: [requirement.id],
-      front: requirement.text,
-      back: `Prepare one concrete example, one tradeoff, and one follow-up risk for: ${requirement.text}`,
-    }));
+    if (input.schemaName === "QuestionDrafts") {
+      return input.schema.parse([]) as T;
+    }
+
+    if (input.schemaName === "FlashcardDrafts") {
+      return input.schema.parse([]) as T;
+    }
+
+    return input.schema.parse({});
   }
 }
 
@@ -431,16 +584,57 @@ function toFlashcards(drafts: FlashcardDraft[]): Flashcard[] {
   }));
 }
 
-function addGapQuestions({
+async function addGapQuestions({
   questions,
   requirements,
   uncoveredRequirementIds,
+  research,
+  adapter,
 }: {
   questions: Question[];
   requirements: Requirement[];
   uncoveredRequirementIds: string[];
-}): Question[] {
+  research: CompanyResearchResult;
+  adapter: JsonLlmAdapter | null;
+}): Promise<Question[]> {
   const nextQuestions = [...questions];
+
+  if (adapter && uncoveredRequirementIds.length > 0) {
+    try {
+      const gapRequirements = requirements.filter((requirement) =>
+        uncoveredRequirementIds.includes(requirement.id),
+      );
+      const drafts = await adapter.generateJson({
+        schemaName: "QuestionDrafts",
+        schema: LlmQuestionsSchema,
+        prompt: buildGapQuestionPrompt(gapRequirements, research),
+      });
+
+      for (const draft of drafts) {
+        const validRequirementIds = draft.requirement_ids.filter((id) =>
+          uncoveredRequirementIds.includes(id),
+        );
+
+        if (validRequirementIds.length === 0) {
+          continue;
+        }
+
+        nextQuestions.push({
+          id: `q${nextQuestions.length + 1}`,
+          requirement_ids: validRequirementIds,
+          category: draft.category,
+          prompt: draft.prompt,
+          answer_outline: `Gap-pass question. ${draft.answer_outline}`,
+          difficulty: draft.difficulty,
+        });
+      }
+
+      const remainingCoverage = createCoverage(requirements, nextQuestions, 2);
+      uncoveredRequirementIds = remainingCoverage.uncovered_requirement_ids;
+    } catch {
+      // Fall through to deterministic targeted questions.
+    }
+  }
 
   for (const requirementId of uncoveredRequirementIds) {
     const requirement = requirements.find((item) => item.id === requirementId);
@@ -454,12 +648,33 @@ function addGapQuestions({
       requirement_ids: [requirement.id],
       category: categoryForRequirement(requirement),
       prompt: questionPromptForRequirement(requirement),
-      answer_outline: `Gap-pass question. ${answerOutlineForRequirement(requirement)}`,
+      answer_outline: `Gap-pass question. ${answerOutlineForRequirement(requirement, research)}`,
       difficulty: difficultyForRequirement(requirement),
     });
   }
 
   return nextQuestions;
+}
+
+function deterministicQuestionDrafts(
+  requirements: Requirement[],
+  research: CompanyResearchResult,
+): QuestionDraft[] {
+  return requirements.map((requirement) => ({
+    requirementIds: [requirement.id],
+    category: categoryForRequirement(requirement),
+    prompt: questionPromptForRequirement(requirement),
+    answerOutline: answerOutlineForRequirement(requirement, research),
+    difficulty: difficultyForRequirement(requirement),
+  }));
+}
+
+function deterministicFlashcardDrafts(requirements: Requirement[]): FlashcardDraft[] {
+  return requirements.map((requirement) => ({
+    requirementIds: [requirement.id],
+    front: requirement.text,
+    back: `Prepare one concrete example, one tradeoff, and one follow-up risk for: ${requirement.text}`,
+  }));
 }
 
 function categoryForRequirement(requirement: Requirement): QuestionCategory {
@@ -490,12 +705,72 @@ function questionPromptForRequirement(requirement: Requirement): string {
   return `Explain your practical experience with: ${requirement.text}`;
 }
 
-function answerOutlineForRequirement(requirement: Requirement): string {
+function answerOutlineForRequirement(
+  requirement: Requirement,
+  research?: CompanyResearchResult,
+): string {
+  const researchNote = research?.sources.length
+    ? `Company context: use notes from ${research.sources.map((source) => source.url).join(", ")}.`
+    : "Company context: no retrieved company sources are available.";
+
   return [
     `Requirement link: ${requirement.id}.`,
     `Rationale: this ${requirement.priority} requirement is explicitly present in the JD.`,
+    researchNote,
     `Prep notes: prepare a specific example, tradeoffs, failure modes, and follow-up questions for "${requirement.text}".`,
   ].join(" ");
+}
+
+function buildRequirementPrompt(jd: string): string {
+  return [
+    "Extract only explicit requirements from this job description.",
+    "Return a JSON array of objects with text, kind, and priority.",
+    "kind must be technical, behavioural, or domain.",
+    "priority must be must or nice based on the posting wording.",
+    "Do not infer requirements that are absent from the JD.",
+    "",
+    "Job description:",
+    jd,
+  ].join("\n");
+}
+
+function buildQuestionPrompt(
+  requirements: Requirement[],
+  research: CompanyResearchResult,
+): string {
+  return [
+    "Generate interview preparation questions for the supplied requirements.",
+    "Return a JSON array. Each object must have requirement_ids, category, prompt, answer_outline, and difficulty.",
+    "Every must-have requirement should have at least one question.",
+    "Use company research only as context; do not add new requirements.",
+    "",
+    `Requirements: ${JSON.stringify(requirements)}`,
+    `Company research: ${research.notes}`,
+  ].join("\n");
+}
+
+function buildGapQuestionPrompt(
+  requirements: Requirement[],
+  research: CompanyResearchResult,
+): string {
+  return [
+    "Generate targeted gap-pass questions only for these uncovered must-have requirements.",
+    "Return a JSON array. Each object must include the matching requirement id in requirement_ids.",
+    "Use company research only as context; do not add new requirements.",
+    "",
+    `Uncovered requirements: ${JSON.stringify(requirements)}`,
+    `Company research: ${research.notes}`,
+  ].join("\n");
+}
+
+function buildFlashcardPrompt(requirements: Requirement[]): string {
+  return [
+    "Generate concise interview prep flashcards for these requirements.",
+    "Return a JSON array. Each object must have requirement_ids, front, and back.",
+    "Do not add new requirements.",
+    "",
+    `Requirements: ${JSON.stringify(requirements)}`,
+  ].join("\n");
 }
 
 function difficultyForRequirement(requirement: Requirement): 1 | 2 | 3 {

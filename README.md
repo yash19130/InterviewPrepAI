@@ -15,7 +15,7 @@ The current implementation focuses on the validated evaluation pipeline:
 - A local `npm run evaluate -- --input <cases.json> --output <kits.json>` command.
 - Unit tests for coverage, schema validation, CLI output, stable IDs, normal, thin-JD, 1-day, and 60-day behavior.
 
-The UI, authentication, Firebase, crawler, public discussion lookup, and real LLM calls are not implemented yet.
+The UI, authentication, Firebase, and public discussion lookup are not implemented yet.
 
 ## Setup
 
@@ -23,6 +23,8 @@ The UI, authentication, Firebase, crawler, public discussion lookup, and real LL
 npm install
 cp .env.example .env.local
 ```
+
+Set `GEMINI_API_KEY` in `.env.local` to enable real Gemini JSON generation. Without it, the shared pipeline returns a valid deterministic kit.
 
 ## Commands
 
@@ -56,7 +58,9 @@ Coverage checks only must-have requirements. A requirement is covered when a gen
 
 The scheduler sorts questions that cover must-have requirements first, then higher difficulty first, then by stable question id. It returns exactly `days_available` entries. Days with scheduled questions receive `60` integer minutes. Empty days receive `0` minutes and the focus `Review and rest`.
 
-The evaluator uses deterministic mocked generation through an `LlmAdapter` interface. Real Gemini generation can be plugged into that adapter later without changing the CLI or web entry points. The deterministic extractor preserves only requirement-like JD lines, creates one question and one flashcard per extracted requirement, and uses a gap pass to add targeted questions if a must-have requirement was missed by the adapter. It does not enrich thin job descriptions or invent requirements absent from the JD.
+The evaluator uses `src/lib/pipeline/generateKit.ts` as the shared source of truth. It can call Gemini through a JSON adapter, but deterministic validation still assigns stable IDs, checks coverage, fills uncovered must-have gaps, and schedules exactly the requested number of days. If Gemini is unavailable, malformed, quota-limited, or incomplete, the pipeline falls back to deterministic extraction and question generation.
+
+Company research is implemented in `src/lib/research/companyResearch.ts`. It validates URLs, allows only `http` and `https`, blocks local/private hosts, ranks same-origin links by relevance, limits pages and response size, and returns concise notes with source URLs. Research enriches generated questions but never blocks kit creation.
 
 ## Environment
 
