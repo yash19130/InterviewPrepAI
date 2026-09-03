@@ -1,0 +1,14 @@
+[
+  {
+    "id": "case-01",
+    "jd": "Senior Frontend Engineer\nRequired: 5+ years with React.\nMust collaborate with product managers.\nBonus: GraphQL experience.",
+    "company_url": "http://localhost:8099/acme/",
+    "days": 5
+  },
+  {
+    "id": "case-02",
+    "jd": "Frontend Engineer\nMust know React.",
+    "company_url": "not a url",
+    "days": 1
+  }
+]
