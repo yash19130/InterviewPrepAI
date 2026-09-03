@@ -1,9 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 import { LlmAdapterError, type GenerateJsonInput, type JsonLlmAdapter } from "./types";
 
-const DEFAULT_MODEL = "gemini-2.0-flash";
+const DEFAULT_MODEL = "gemini-3.6-flash";
 const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_INITIAL_DELAY_MS = 500;
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
 export class GeminiJsonAdapter implements JsonLlmAdapter {
   private readonly client: GoogleGenAI;
@@ -24,19 +25,23 @@ export class GeminiJsonAdapter implements JsonLlmAdapter {
     const model = input.model ?? this.defaultModel;
     const maxRetries = input.retry?.maxRetries ?? DEFAULT_MAX_RETRIES;
     const initialDelayMs = input.retry?.initialDelayMs ?? DEFAULT_INITIAL_DELAY_MS;
+    const requestTimeoutMs = input.retry?.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        const response = await this.client.models.generateContent({
-          model,
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: buildJsonPrompt(input.prompt, input.schemaName) }],
-            },
-          ],
-        });
+        const response = await withTimeout(
+          this.client.models.generateContent({
+            model,
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: buildJsonPrompt(input.prompt, input.schemaName) }],
+              },
+            ],
+          }),
+          requestTimeoutMs,
+        );
         const text = response.text ?? "";
         const parsed = parseJsonLike(text);
 
@@ -117,4 +122,15 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => {
+        reject(new LlmAdapterError("Gemini request timed out.", "PROVIDER_ERROR"));
+      }, timeoutMs);
+    }),
+  ]);
 }

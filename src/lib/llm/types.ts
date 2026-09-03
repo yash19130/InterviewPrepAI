@@ -3,6 +3,7 @@ import type { z } from "zod";
 export type LlmRetryOptions = {
   maxRetries?: number;
   initialDelayMs?: number;
+  requestTimeoutMs?: number;
 };
 
 export type GenerateJsonInput<T> = {

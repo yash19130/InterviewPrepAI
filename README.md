@@ -24,7 +24,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Set `GEMINI_API_KEY` in `.env.local` to enable real Gemini JSON generation. Without it, the shared pipeline returns a valid deterministic kit. Set the Firebase client and Admin SDK variables to enable email/password auth and Firestore-backed kit storage.
+Set `GEMINI_API_KEY` in `.env.local` to enable real Gemini JSON generation. The default model is `gemini-3.6-flash`; override it with `GEMINI_MODEL` if needed. Without a Gemini key, the shared pipeline returns a valid deterministic kit. Set the Firebase client and Admin SDK variables to enable email/password auth and Firestore-backed kit storage.
 
 ## Commands
 
