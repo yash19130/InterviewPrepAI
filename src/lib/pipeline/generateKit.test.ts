@@ -147,7 +147,10 @@ describe("generateKit", () => {
     const dir = await mkdtemp(join(tmpdir(), "interviewprepai-"));
     const inputPath = join(dir, "cases.json");
     const outputPath = join(dir, "kits.json");
-    const cases = [richCase, thinCase, invalidUrlCase];
+    const cases = [richCase, thinCase, invalidUrlCase].map((testCase) => ({
+      ...testCase,
+      company_url: "not a url",
+    }));
 
     await writeFile(inputPath, `${JSON.stringify(cases, null, 2)}\n`);
     await execFileAsync("npm", [

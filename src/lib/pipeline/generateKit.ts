@@ -87,20 +87,24 @@ type LineWithContext = {
 
 export async function generateKit(input: GenerateKitInput): Promise<Kit> {
   const normalizedInput = normalizeInput(input);
-  const research = input.research ?? await researchCompany(normalizedInput.companyUrl, {
-    fetchImpl: input.fetchImpl,
-  });
   const adapter = input.llm ?? createOptionalGeminiAdapter();
-  const extraction = await extractRequirementsWithFallback(normalizedInput.jd, adapter);
-  const questionDrafts = await generateQuestionDrafts({
-    requirements: extraction.requirements,
-    research,
-    adapter,
-  });
-  const flashcardDrafts = await generateFlashcardDrafts({
-    requirements: extraction.requirements,
-    adapter,
-  });
+  const [research, extraction] = await Promise.all([
+    input.research ?? researchCompany(normalizedInput.companyUrl, {
+      fetchImpl: input.fetchImpl,
+    }),
+    extractRequirementsWithFallback(normalizedInput.jd, adapter),
+  ]);
+  const [questionDrafts, flashcardDrafts] = await Promise.all([
+    generateQuestionDrafts({
+      requirements: extraction.requirements,
+      research,
+      adapter,
+    }),
+    generateFlashcardDrafts({
+      requirements: extraction.requirements,
+      adapter,
+    }),
+  ]);
 
   let questions = toQuestions(questionDrafts);
   const firstCoverage = createCoverage(extraction.requirements, questions, 1);
@@ -204,6 +208,7 @@ async function extractRequirementsWithFallback(
         schemaName: "RequirementExtraction",
         schema: LlmRequirementsSchema,
         prompt: buildRequirementPrompt(jd),
+        retry: pipelineLlmRetryOptions(),
       });
       const drafts = llmRequirements.map<RequirementDraft>((requirement) => ({
         text: requirement.text,
@@ -240,6 +245,7 @@ async function generateQuestionDrafts({
         schemaName: "QuestionDrafts",
         schema: LlmQuestionsSchema,
         prompt: buildQuestionPrompt(requirements, research),
+        retry: pipelineLlmRetryOptions(),
       });
 
       const requirementIds = new Set(requirements.map((requirement) => requirement.id));
@@ -272,6 +278,7 @@ async function generateFlashcardDrafts({
         schemaName: "FlashcardDrafts",
         schema: LlmFlashcardsSchema,
         prompt: buildFlashcardPrompt(requirements),
+        retry: pipelineLlmRetryOptions(),
       });
 
       const requirementIds = new Set(requirements.map((requirement) => requirement.id));
@@ -608,6 +615,7 @@ async function addGapQuestions({
         schemaName: "QuestionDrafts",
         schema: LlmQuestionsSchema,
         prompt: buildGapQuestionPrompt(gapRequirements, research),
+        retry: pipelineLlmRetryOptions(),
       });
 
       for (const draft of drafts) {
@@ -830,4 +838,18 @@ function inferCompanyName(companyUrl: string): string {
   } catch {
     return "";
   }
+}
+
+function pipelineLlmRetryOptions() {
+  return {
+    maxRetries: numberFromEnv("GEMINI_MAX_RETRIES", 0),
+    initialDelayMs: numberFromEnv("GEMINI_RETRY_INITIAL_DELAY_MS", 250),
+    requestTimeoutMs: numberFromEnv("GEMINI_REQUEST_TIMEOUT_MS", 3000),
+  };
+}
+
+function numberFromEnv(key: string, fallback: number): number {
+  const value = Number(process.env[key]);
+
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
 }
