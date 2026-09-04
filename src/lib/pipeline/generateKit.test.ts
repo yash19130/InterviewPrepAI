@@ -153,15 +153,24 @@ describe("generateKit", () => {
     }));
 
     await writeFile(inputPath, `${JSON.stringify(cases, null, 2)}\n`);
-    await execFileAsync("npm", [
-      "run",
-      "evaluate",
-      "--",
-      "--input",
-      inputPath,
-      "--output",
-      outputPath,
-    ]);
+    await execFileAsync(
+      "npm",
+      [
+        "run",
+        "evaluate",
+        "--",
+        "--input",
+        inputPath,
+        "--output",
+        outputPath,
+      ],
+      {
+        env: {
+          ...process.env,
+          GEMINI_API_KEY: "",
+        },
+      },
+    );
 
     const output = JSON.parse(await readFile(outputPath, "utf8")) as BatchOutput;
 

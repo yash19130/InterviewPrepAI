@@ -11,6 +11,7 @@ import {
   markScheduleEdited,
   type KitEditMetadata,
 } from "@/lib/kits/preservation";
+import { getRedditInsight } from "@/lib/kits/reddit";
 import type { Kit, Question } from "@/lib/schemas";
 
 type Confidence = "low" | "medium" | "high";
@@ -63,6 +64,7 @@ export default function KitDetailPage() {
       return left.id.localeCompare(right.id);
     });
   }, [confidence, kit]);
+  const redditInsight = useMemo(() => kit ? getRedditInsight(kit) : null, [kit]);
 
   async function saveKit(nextKit = kit, nextMetadata = metadata) {
     if (!nextKit || !nextMetadata) {
@@ -269,6 +271,30 @@ export default function KitDetailPage() {
                     <p className="text-sm text-slate-600">No must-have requirements found.</p>
                   ) : null}
                 </div>
+              </section>
+
+              <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-semibold">What people on Reddit say</h2>
+                {redditInsight?.found ? (
+                  <div className="mt-3 grid gap-2">
+                    <p className="text-sm text-slate-600">{redditInsight.message}</p>
+                    {redditInsight.sources.map((source) => (
+                      <a
+                        key={source}
+                        href={source}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="break-all rounded-md border border-slate-200 p-3 text-sm text-slate-700 underline hover:bg-slate-50"
+                      >
+                        {source}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-600">
+                    {redditInsight?.message ?? "Didn't find interview experiences on Reddit."}
+                  </p>
+                )}
               </section>
 
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
