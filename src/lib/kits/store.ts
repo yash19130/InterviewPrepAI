@@ -134,9 +134,11 @@ export async function updateKitForUser({
 export async function regenerateKitForUser({
   userId,
   kitId,
+  section,
 }: {
   userId: string;
   kitId: string;
+  section?: string;
 }): Promise<StoredKitDocument | null> {
   const existing = await getKitForUser(userId, kitId);
 
@@ -144,25 +146,63 @@ export async function regenerateKitForUser({
     return null;
   }
 
-  const regeneratedKit = await generateKit({
-    jd: existing.currentKit.role.requirements.map((requirement) => requirement.text).join("\n"),
-    company_url: existing.currentKit.source.company_url,
-    days: existing.currentKit.schedule.days_available,
-  });
+  let regeneratedKit: any;
+
+  if (section === "schedule") {
+    // Only rebuild the schedule deterministically
+    const { createSchedule } = await import("@/lib/deterministic/schedule");
+    regeneratedKit = {
+      ...existing.currentKit,
+      schedule: createSchedule({
+        daysAvailable: existing.currentKit.schedule.days_available,
+        requirements: existing.currentKit.role.requirements,
+        questions: existing.currentKit.questions,
+      }),
+    };
+  } else {
+    regeneratedKit = await generateKit({
+      jd: existing.currentKit.role.requirements.map((requirement) => requirement.text).join("\n"),
+      company_url: existing.currentKit.source.company_url,
+      days: existing.currentKit.schedule.days_available,
+    });
+  }
+
   const merged = mergeRegeneratedKit({
     currentKit: existing.currentKit,
     regeneratedKit,
     metadata: existing.metadata,
   });
 
+  let finalKit = merged.kit;
+
+  if (section === "schedule") {
+    finalKit = { ...existing.currentKit, schedule: merged.kit.schedule };
+  } else if (section === "company_brief") {
+    finalKit = { ...existing.currentKit, company_brief: regeneratedKit.company_brief };
+  } else if (section === "questions") {
+    finalKit = { ...existing.currentKit, questions: merged.kit.questions };
+  }
+
   return updateKitForUser({
     userId,
     kitId,
-    kit: merged.kit,
+    kit: finalKit,
     metadata: merged.metadata,
   });
 }
 
 function collectionForUser(userId: string) {
   return getAdminDb().collection("users").doc(userId).collection("kits");
+}
+
+export async function deleteKitForUser(userId: string, kitId: string): Promise<boolean> {
+  const kitRef = collectionForUser(userId).doc(kitId);
+  const snapshot = await kitRef.get();
+  
+  if (!snapshot.exists) {
+    return false;
+  }
+  
+  await kitRef.delete();
+  return true;
 }

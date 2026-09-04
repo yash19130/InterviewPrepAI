@@ -1,0 +1,182 @@
+[
+  {
+    "id": "r1",
+    "text": "We are looking for Android engineers to build the native Android experience for BJAK's Android Software Engineer",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r2",
+    "text": "This role is for someone who cares about clean user flows, fast performance, product quality and shipping reliable mobile features used by real customers",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r3",
+    "text": "Build and ship Android features using Kotlin",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r4",
+    "text": "Create clean mobile flows for insurance, payments, claims, renewals and financial services",
+    "kind": "domain",
+    "priority": "must"
+  },
+  {
+    "id": "r5",
+    "text": "Work with product and design to simplify complex user journeys",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r6",
+    "text": "Integrate backend APIs and ensure mobile flows are stable, secure and reliable",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r7",
+    "text": "Improve app performance, crash rate, loading states, responsiveness and memory usage",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r8",
+    "text": "Use analytics, user behaviour and production issues to improve the product",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r9",
+    "text": "Build AI-assisted mobile experiences only where they genuinely improve the user journey",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r10",
+    "text": "Android development experience using Kotlin",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r11",
+    "text": "Strong Android fundamentals and experience shipping production apps",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r12",
+    "text": "Good knowledge of Jetpack, Coroutines, Flow and modern Android architecture",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r13",
+    "text": "Strong sense of mobile UX, usability, edge cases and user flows",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r14",
+    "text": "Experience integrating REST APIs and debugging production issues",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r15",
+    "text": "Fast execution, high ownership and strong attention to product quality",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r16",
+    "text": "App links, GitHub, screenshots or examples of shipped work are a strong advantage",
+    "kind": "behavioural",
+    "priority": "must"
+  },
+  {
+    "id": "r17",
+    "text": "Kotlin",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r18",
+    "text": "Jetpack Compose",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r19",
+    "text": "Android SDK",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r20",
+    "text": "Coroutines & Flow",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r21",
+    "text": "SQL / NoSQL",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r22",
+    "text": "TensorFlow Lite (on-device inference)",
+    "kind": "technical",
+    "priority": "must"
+  },
+  {
+    "id": "r23",
+    "text": "Thinks in user journeys, not just screens",
+    "kind": "technical",
+    "priority": "nice"
+  },
+  {
+    "id": "r24",
+    "text": "Cares about making complex financial products feel simple",
+    "kind": "technical",
+    "priority": "nice"
+  },
+  {
+    "id": "r25",
+    "text": "Moves fast without creating messy code",
+    "kind": "technical",
+    "priority": "nice"
+  },
+  {
+    "id": "r26",
+    "text": "Notices UX, performance and reliability issues before users complain",
+    "kind": "technical",
+    "priority": "nice"
+  },
+  {
+    "id": "r27",
+    "text": "Honest about what they personally built, what was team-owned and what impact they can or cannot claim",
+    "kind": "behavioural",
+    "priority": "nice"
+  },
+  {
+    "id": "r28",
+    "text": "Engineers who only want fully defined tickets",
+    "kind": "technical",
+    "priority": "nice"
+  },
+  {
+    "id": "r29",
+    "text": "Developers who build screens without caring about user experience",
+    "kind": "behavioural",
+    "priority": "nice"
+  },
+  {
+    "id": "r30",
+    "text": "People who ignore crashes, edge cases, loading states or performance",
+    "kind": "technical",
+    "priority": "nice"
+  }
+]

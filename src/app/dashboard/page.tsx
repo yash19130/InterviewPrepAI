@@ -20,6 +20,19 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function deleteKit(id: string) {
+    if (!confirm("Are you sure you want to delete this kit?")) {
+      return;
+    }
+
+    try {
+      await apiFetch(`/api/kits/${id}`, { method: "DELETE" });
+      setKits(kits.filter((kit) => kit.id !== id));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not delete kit.");
+    }
+  }
+
   return (
     <ProtectedRoute>
       <AppShell>
@@ -56,23 +69,31 @@ export default function DashboardPage() {
 
           <div className="grid gap-3">
             {kits.map((kit) => (
-              <Link
+              <div
                 key={kit.id}
-                href={`/kits/${kit.id}`}
-                className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-300"
+                className="flex flex-col justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center"
               >
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                  <div>
-                    <h2 className="font-semibold">{kit.role}</h2>
+                <div className="flex-1">
+                  <Link href={`/kits/${kit.id}`} className="block focus:outline-none hover:underline">
+                    <h2 className="font-semibold text-slate-900">{kit.role}</h2>
                     <p className="mt-1 text-sm text-slate-600">
                       {kit.companyUrl} · {kit.days} days
                     </p>
-                  </div>
-                  <span className="text-xs text-slate-500">
-                    Updated {new Date(kit.updatedAt).toLocaleString()}
-                  </span>
+                  </Link>
                 </div>
-              </Link>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-slate-500">
+                    Updated {new Date(kit.updatedAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => deleteKit(kit.id)}
+                    className="text-sm font-medium text-red-600 hover:text-red-700 focus:outline-none"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         </div>

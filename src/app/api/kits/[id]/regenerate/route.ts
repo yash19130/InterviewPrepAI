@@ -14,9 +14,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  const body = await request.json().catch(() => ({}));
+
   const updated = await regenerateKitForUser({
     userId: auth.user.uid,
     kitId: id,
+    section: body.section,
   });
 
   if (!updated) {

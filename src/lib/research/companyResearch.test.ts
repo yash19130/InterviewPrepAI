@@ -12,15 +12,21 @@ describe("researchCompany", () => {
     expect(result.notes).toBe("Could not retrieve company data.");
   });
 
-  it("blocks localhost and private IP hosts before fetching", async () => {
-    const fetchImpl = vi.fn<typeof fetch>();
-    const result = await researchCompany("http://localhost:8099/acme/", {
-      fetchImpl,
-    });
+  it("blocks localhost and private IP hosts before fetching in production", async () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const fetchImpl = vi.fn<typeof fetch>();
+      const result = await researchCompany("http://localhost:8099/acme/", {
+        fetchImpl,
+      });
 
-    expect(fetchImpl).not.toHaveBeenCalled();
-    expect(result.sources).toEqual([]);
-    expect(result.errors[0]).toContain("blocked private or local host");
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(result.sources).toEqual([]);
+      expect(result.errors[0]).toContain("blocked private or local host");
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+    }
   });
 
   it("times out slow fetches without throwing", async () => {

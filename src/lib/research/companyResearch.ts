@@ -170,7 +170,7 @@ function validatePublicHttpUrl(input: string): ValidatedUrl {
     return { ok: false, error: "Company URL must use http or https." };
   }
 
-  if (isBlockedHost(url.hostname)) {
+  if (isBlockedHost(url.hostname) && process.env.NODE_ENV === "production") {
     return { ok: false, error: "Company URL points to a blocked private or local host." };
   }
 

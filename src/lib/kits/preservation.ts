@@ -8,6 +8,7 @@ export type KitEditMetadata = {
   pinnedScheduleDays: number[];
   editedFields: Record<string, true>;
   skippedGeneratedIds: string[];
+  flashcardConfidence?: Record<string, "low" | "medium" | "high">;
 };
 
 export type StoredKitDocument = {
@@ -25,6 +26,7 @@ export const emptyEditMetadata: KitEditMetadata = {
   pinnedScheduleDays: [],
   editedFields: {},
   skippedGeneratedIds: [],
+  flashcardConfidence: {},
 };
 
 export function createStoredKitDocument({
