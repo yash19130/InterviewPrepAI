@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { researchCompany } from "./companyResearch";
+import { researchCompany, researchCompanyAndDiscussions } from "./companyResearch";
 
 describe("researchCompany", () => {
   it("treats invalid company URLs as non-fatal research failures", async () => {
@@ -87,5 +87,95 @@ describe("researchCompany", () => {
       "https://example.com/careers",
       "https://example.com/about",
     ]);
+  });
+
+  it("fetches top Reddit interview discussion results when found", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = input.toString();
+
+      if (url === "https://acme.com/") {
+        return new Response(
+          "<html><head><title>Acme</title></head><body>Acme product page.</body></html>",
+          { headers: { "content-type": "text/html" } },
+        );
+      }
+
+      if (url.startsWith("https://www.reddit.com/search.json")) {
+        return Response.json({
+          data: {
+            children: [
+              {
+                data: {
+                  title: "Acme interview experience",
+                  selftext: "Phone screen then take-home.",
+                  permalink: "/r/interviews/comments/1/acme_interview/",
+                },
+              },
+              {
+                data: {
+                  title: "Acme onsite interview",
+                  selftext: "System design round.",
+                  permalink: "/r/cscareerquestions/comments/2/acme_onsite/",
+                },
+              },
+            ],
+          },
+        });
+      }
+
+      if (url.includes("/r/interviews/comments/1/acme_interview/")) {
+        return new Response(
+          "<html><head><title>Discussion</title></head><body>Phone screen then take-home.</body></html>",
+          { headers: { "content-type": "text/html" } },
+        );
+      }
+
+      if (url.includes("/r/cscareerquestions/comments/2/acme_onsite/")) {
+        return new Response(
+          "<html><head><title>Discussion</title></head><body>System design round.</body></html>",
+          { headers: { "content-type": "text/html" } },
+        );
+      }
+
+      return new Response("", { status: 404 });
+    });
+
+    const result = await researchCompanyAndDiscussions("https://acme.com/", {
+      fetchImpl,
+    });
+
+    expect(result.sources.filter((source) => source.kind === "discussion")).toHaveLength(2);
+    expect(result.sources.map((source) => source.url)).toContain(
+      "https://www.reddit.com/r/interviews/comments/1/acme_interview/",
+    );
+    expect(result.notes).toContain("take-home");
+    expect(result.notes).toContain("System design");
+  });
+
+  it("continues when Reddit search finds no interview discussion pages", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = input.toString();
+
+      if (url === "https://acme.com/") {
+        return new Response(
+          "<html><head><title>Acme</title></head><body>Acme product page.</body></html>",
+          { headers: { "content-type": "text/html" } },
+        );
+      }
+
+      if (url.startsWith("https://www.reddit.com/search.json")) {
+        return Response.json({ data: { children: [] } });
+      }
+
+      return new Response("", { status: 404 });
+    });
+
+    const result = await researchCompanyAndDiscussions("https://acme.com/", {
+      fetchImpl,
+    });
+
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]?.kind).toBe("company");
+    expect(result.notes).toContain("Acme product page.");
   });
 });

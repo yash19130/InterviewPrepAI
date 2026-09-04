@@ -78,7 +78,7 @@ The scheduler sorts questions that cover must-have requirements first, then high
 
 The evaluator uses `src/lib/pipeline/generateKit.ts` as the shared source of truth. It can call Gemini through a JSON adapter, but deterministic validation still assigns stable IDs, checks coverage, fills uncovered must-have gaps, and schedules exactly the requested number of days. If Gemini is unavailable, malformed, quota-limited, or incomplete, the pipeline falls back to deterministic extraction and question generation.
 
-Company research is implemented in `src/lib/research/companyResearch.ts`. It validates URLs, allows only `http` and `https`, blocks local/private hosts, ranks same-origin links by relevance, limits pages and response size, and returns concise notes with source URLs. Research enriches generated questions but never blocks kit creation.
+Company research is implemented in `src/lib/research/companyResearch.ts`. It validates URLs, allows only `http` and `https`, blocks local/private hosts, ranks same-origin links by relevance, limits pages and response size, searches Reddit for top interview-experience discussions, and returns concise notes with source URLs. Research enriches generated questions but never blocks kit creation. Fetched page text is always wrapped as untrusted content in LLM prompts; the model is instructed to use it only as context and never follow instructions inside it.
 
 ## Edit Preservation
 

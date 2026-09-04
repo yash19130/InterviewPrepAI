@@ -3,6 +3,7 @@ import * as cheerio from "cheerio";
 export type CompanyResearchOptions = {
   fetchImpl?: typeof fetch;
   maxPages?: number;
+  maxDiscussionPages?: number;
   timeoutMs?: number;
   maxBytes?: number;
   maxLinksToRank?: number;
@@ -14,6 +15,7 @@ export type CompanyResearchSource = {
   url: string;
   title: string;
   notes: string;
+  kind: "company" | "discussion";
 };
 
 export type CompanyResearchResult = {
@@ -25,6 +27,7 @@ export type CompanyResearchResult = {
 
 const DEFAULT_LIMITS = {
   maxPages: 4,
+  maxDiscussionPages: 3,
   timeoutMs: 5000,
   maxBytes: 500_000,
   maxLinksToRank: 80,
@@ -102,6 +105,35 @@ export async function researchCompany(
     sources,
     notes: notes || "Could not retrieve company data.",
     errors,
+  };
+}
+
+export async function researchCompanyAndDiscussions(
+  companyUrl: string,
+  options: CompanyResearchOptions = {},
+): Promise<CompanyResearchResult> {
+  const companyResearch = await researchCompany(companyUrl, options);
+  const discussionResearch = await researchInterviewDiscussions({
+    companyName: inferCompanyName(companyUrl),
+    fetchImpl: options.fetchImpl ?? fetch,
+    timeoutMs: options.timeoutMs ?? DEFAULT_LIMITS.timeoutMs,
+    maxBytes: options.maxBytes ?? DEFAULT_LIMITS.maxBytes,
+    maxDiscussionPages: options.maxDiscussionPages ?? DEFAULT_LIMITS.maxDiscussionPages,
+    maxResearchCharsPerPage:
+      options.maxResearchCharsPerPage ?? DEFAULT_LIMITS.maxResearchCharsPerPage,
+    maxTotalResearchChars: options.maxTotalResearchChars ?? DEFAULT_LIMITS.maxTotalResearchChars,
+  });
+  const sources = [...companyResearch.sources, ...discussionResearch.sources];
+  const notes = sources
+    .map((source) => `${source.title}\n${source.notes}`)
+    .join("\n\n")
+    .slice(0, options.maxTotalResearchChars ?? DEFAULT_LIMITS.maxTotalResearchChars);
+
+  return {
+    companyUrl,
+    sources,
+    notes: notes || companyResearch.notes,
+    errors: [...companyResearch.errors, ...discussionResearch.errors],
   };
 }
 
@@ -286,5 +318,152 @@ function toSource(page: FetchedPage, maxChars: number): CompanyResearchSource {
     url: page.url,
     title: page.title,
     notes: page.text.slice(0, maxChars),
+    kind: "company",
   };
+}
+
+type DiscussionResearchInput = {
+  companyName: string;
+  fetchImpl: typeof fetch;
+  timeoutMs: number;
+  maxBytes: number;
+  maxDiscussionPages: number;
+  maxResearchCharsPerPage: number;
+  maxTotalResearchChars: number;
+};
+
+async function researchInterviewDiscussions({
+  companyName,
+  fetchImpl,
+  timeoutMs,
+  maxBytes,
+  maxDiscussionPages,
+  maxResearchCharsPerPage,
+}: DiscussionResearchInput): Promise<Pick<CompanyResearchResult, "sources" | "errors">> {
+  const errors: string[] = [];
+  const sources: CompanyResearchSource[] = [];
+
+  if (!companyName) {
+    return {
+      sources,
+      errors: ["Could not infer company name for public discussion search."],
+    };
+  }
+
+  const searchUrl = new URL("https://www.reddit.com/search.json");
+  searchUrl.searchParams.set("q", `"${companyName}" interview experience`);
+  searchUrl.searchParams.set("limit", "10");
+  searchUrl.searchParams.set("sort", "relevance");
+  searchUrl.searchParams.set("t", "all");
+
+  const searchResponse = await fetchJson(searchUrl.toString(), fetchImpl, timeoutMs).catch(
+    (error) => {
+      errors.push(error instanceof Error ? error.message : "Could not search Reddit.");
+      return null;
+    },
+  );
+
+  const posts = redditPostsFromSearch(searchResponse)
+    .filter((post) => /interview|onsite|phone screen|take.?home/i.test(`${post.title} ${post.selftext}`))
+    .slice(0, maxDiscussionPages);
+
+  for (const post of posts) {
+    const permalink = new URL(post.permalink, "https://www.reddit.com");
+    const page = await fetchPage(permalink.toString(), fetchImpl, {
+      ...DEFAULT_LIMITS,
+      timeoutMs,
+      maxBytes,
+    }).catch((error) => {
+      errors.push(error instanceof Error ? error.message : `Could not fetch ${permalink}.`);
+      return null;
+    });
+
+    sources.push({
+      url: permalink.toString(),
+      title: post.title,
+      notes: sanitizeUntrustedText(page?.text || post.selftext || post.title).slice(
+        0,
+        maxResearchCharsPerPage,
+      ),
+      kind: "discussion",
+    });
+  }
+
+  return { sources, errors };
+}
+
+async function fetchJson(
+  url: string,
+  fetchImpl: typeof fetch,
+  timeoutMs: number,
+): Promise<unknown> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetchImpl(url, {
+      headers: {
+        accept: "application/json",
+        "user-agent": "InterviewPrepAI/0.1 research bot",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Fetch failed for ${url} with status ${response.status}.`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Fetch timed out for ${url}.`);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+type RedditPost = {
+  title: string;
+  selftext: string;
+  permalink: string;
+};
+
+function redditPostsFromSearch(response: unknown): RedditPost[] {
+  if (!response || typeof response !== "object") {
+    return [];
+  }
+
+  const children = (response as { data?: { children?: unknown[] } }).data?.children ?? [];
+
+  return children.flatMap((child) => {
+    const data = (child as { data?: Partial<RedditPost> }).data;
+
+    if (!data?.title || !data.permalink) {
+      return [];
+    }
+
+    return [
+      {
+        title: String(data.title),
+        selftext: String(data.selftext ?? ""),
+        permalink: String(data.permalink),
+      },
+    ];
+  });
+}
+
+function sanitizeUntrustedText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function inferCompanyName(companyUrl: string): string {
+  try {
+    const hostname = new URL(companyUrl).hostname.replace(/^www\./, "");
+    return hostname.split(".")[0] ?? "";
+  } catch {
+    return "";
+  }
 }
