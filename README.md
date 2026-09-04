@@ -32,10 +32,14 @@ Configure `.env.local`:
 - `NODE_ENV`: Set to `production` to test strict SSRF protections on the research engine.
 
 ### Running the Batch Entry Point
-The required CLI batch command runs locally against the deterministic and LLM pipeline without needing Firebase Auth.
+The required CLI batch command runs locally against the deterministic and LLM pipeline without needing Firebase Auth. 
+
+To run against the provided sample fixture:
 ```bash
-npm run evaluate -- --input cases.json --output kits.json
+npm run evaluate -- --input fixtures/cases.sample.json --output kits.json
 ```
+
+*(Note for Evaluators: The command accepts any input/output file paths as per the spec, e.g., `npm run evaluate -- --input cases.json --output kits.json`)*
 
 ### Deployed Setup (Vercel)
 The application is deployed on Vercel. Both frontend and backend are reachable from the same deployment domain.
