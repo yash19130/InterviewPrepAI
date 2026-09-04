@@ -39,7 +39,7 @@ export default function KitDetailPage() {
   }
 
   useEffect(() => {
-    apiFetch<KitResponse>(`/api/kits/${params.id}`)
+    apiFetch<KitResponse>(`/api/kits/${params.id}`, { cache: "no-store" })
       .then((response) => {
         applyKit(response.currentKit);
         applyMetadata(response.metadata);
@@ -57,6 +57,10 @@ export default function KitDetailPage() {
   const coveredRequirementIds = useMemo(
     () => new Set(kit?.questions.flatMap((question) => question.requirement_ids) ?? []),
     [kit],
+  );
+  const coveredMustCount = useMemo(
+    () => mustRequirements.filter((requirement) => coveredRequirementIds.has(requirement.id)).length,
+    [coveredRequirementIds, mustRequirements],
   );
   const sortedPracticeQuestions = useMemo(() => {
     if (!kit) {
@@ -130,17 +134,20 @@ export default function KitDetailPage() {
     field: keyof Pick<Question, "prompt" | "answer_outline">,
     value: string,
   ) {
-    if (!kit || !metadata) {
+    if (!kitRef.current || !metadataRef.current) {
       return;
     }
 
+    const currentKit = kitRef.current;
+    const currentMetadata = metadataRef.current;
+
     const nextKit = {
-      ...kit,
-      questions: kit.questions.map((question) =>
+      ...currentKit,
+      questions: currentKit.questions.map((question) =>
         question.id === questionId ? { ...question, [field]: value } : question,
       ),
     };
-    const nextMetadata = markQuestionEdited(metadata, questionId, field);
+    const nextMetadata = markQuestionEdited(currentMetadata, questionId, field);
 
     applyKit(nextKit);
     applyMetadata(nextMetadata);
@@ -151,37 +158,43 @@ export default function KitDetailPage() {
     field: "front" | "back",
     value: string,
   ) {
-    if (!kit || !metadata) {
+    if (!kitRef.current || !metadataRef.current) {
       return;
     }
 
+    const currentKit = kitRef.current;
+    const currentMetadata = metadataRef.current;
+
     const nextKit = {
-      ...kit,
-      flashcards: kit.flashcards.map((flashcard) =>
+      ...currentKit,
+      flashcards: currentKit.flashcards.map((flashcard) =>
         flashcard.id === flashcardId ? { ...flashcard, [field]: value } : flashcard,
       ),
     };
-    const nextMetadata = markFlashcardEdited(metadata, flashcardId, field);
+    const nextMetadata = markFlashcardEdited(currentMetadata, flashcardId, field);
 
     applyKit(nextKit);
     applyMetadata(nextMetadata);
   }
 
   function updateSchedule(day: number, focus: string) {
-    if (!kit || !metadata) {
+    if (!kitRef.current || !metadataRef.current) {
       return;
     }
 
+    const currentKit = kitRef.current;
+    const currentMetadata = metadataRef.current;
+
     const nextKit = {
-      ...kit,
+      ...currentKit,
       schedule: {
-        ...kit.schedule,
-        days: kit.schedule.days.map((scheduleDay) =>
+        ...currentKit.schedule,
+        days: currentKit.schedule.days.map((scheduleDay) =>
           scheduleDay.day === day ? { ...scheduleDay, focus } : scheduleDay,
         ),
       },
     };
-    const nextMetadata = markScheduleEdited(metadata, day);
+    const nextMetadata = markScheduleEdited(currentMetadata, day);
 
     applyKit(nextKit);
     applyMetadata(nextMetadata);
@@ -254,28 +267,43 @@ export default function KitDetailPage() {
               </section>
 
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-semibold">Coverage</h2>
-                <div className="mt-3 grid gap-2">
-                  {mustRequirements.map((requirement) => (
-                    <div
-                      key={requirement.id}
-                      className="flex items-start justify-between gap-3 rounded-md border border-slate-200 p-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{requirement.text}</p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {requirement.id} · {requirement.kind}
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                        {coveredRequirementIds.has(requirement.id) ? "Covered" : "Open"}
-                      </span>
-                    </div>
-                  ))}
-                  {mustRequirements.length === 0 ? (
-                    <p className="text-sm text-slate-600">No must-have requirements found.</p>
-                  ) : null}
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <h2 className="text-lg font-semibold">Coverage</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {coveredMustCount} of {mustRequirements.length} must-have requirements covered
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                    {kit.coverage.uncovered_requirement_ids.length === 0 ? "Complete" : "Needs review"}
+                  </span>
                 </div>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                    View requirement details
+                  </summary>
+                  <div className="mt-3 grid gap-2">
+                    {mustRequirements.map((requirement) => (
+                      <div
+                        key={requirement.id}
+                        className="flex items-start justify-between gap-3 rounded-md border border-slate-200 p-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{requirement.text}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {requirement.id} · {requirement.kind}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                          {coveredRequirementIds.has(requirement.id) ? "Covered" : "Open"}
+                        </span>
+                      </div>
+                    ))}
+                    {mustRequirements.length === 0 ? (
+                      <p className="text-sm text-slate-600">No must-have requirements found.</p>
+                    ) : null}
+                  </div>
+                </details>
               </section>
 
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generated_at": "2026-09-04T12:30:20.263Z",
+  "generated_at": "2026-09-04T12:54:21.824Z",
   "kits": [
     {
       "id": "case-01",
@@ -12,7 +12,7 @@
           "role": "Senior Frontend Engineer",
           "location": "",
           "jd_chars": 122,
-          "researched_at": "2026-09-04T12:30:20.233Z",
+          "researched_at": "2026-09-04T12:54:21.805Z",
           "pages_used": []
         },
         "company_brief": {
@@ -27,7 +27,7 @@
           "requirements": [
             {
               "id": "r1",
-              "text": "5+ years with React",
+              "text": "React",
               "kind": "technical",
               "priority": "must"
             },
@@ -52,9 +52,9 @@
               "r1"
             ],
             "category": "technical",
-            "prompt": "Walk through a concrete project or implementation where you used \"5+ years with React\", including decisions, tradeoffs, failure modes, and how you would explain it in this interview.",
-            "answer_outline": "Requirement tested: r1 - 5+ years with React. Why it matters: this must requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"5+ years with React\".",
-            "difficulty": 3
+            "prompt": "Walk through a concrete implementation where you used \"React\". Focus on architecture, decisions, tradeoffs, failure modes, and how you measured success.",
+            "answer_outline": "Requirement tested: r1 - React. Why it matters: this must requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"React\".",
+            "difficulty": 2
           },
           {
             "id": "q2",
@@ -62,7 +62,7 @@
               "r2"
             ],
             "category": "behavioural",
-            "prompt": "Describe a concrete role-specific example that demonstrates \"collaborate with product managers\". Include the situation, actions, tradeoffs, outcome, and what you would do differently.",
+            "prompt": "Tell a concrete project story about \"collaborate with product managers\". Include who was involved, what was hard, how you handled it, and the measurable result.",
             "answer_outline": "Requirement tested: r2 - collaborate with product managers. Why it matters: this must requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"collaborate with product managers\".",
             "difficulty": 2
           },
@@ -72,7 +72,7 @@
               "r3"
             ],
             "category": "technical",
-            "prompt": "Walk through a concrete project or implementation where you used \"GraphQL experience\", including decisions, tradeoffs, failure modes, and how you would explain it in this interview.",
+            "prompt": "Explain a project where \"GraphQL experience\" materially changed the technical approach. Cover alternatives considered, constraints, and the result.",
             "answer_outline": "Requirement tested: r3 - GraphQL experience. Why it matters: this nice requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"GraphQL experience\".",
             "difficulty": 1
           }
@@ -80,8 +80,8 @@
         "flashcards": [
           {
             "id": "f1",
-            "front": "5+ years with React",
-            "back": "Prepare one concrete example, one tradeoff, and one follow-up risk for: 5+ years with React",
+            "front": "React",
+            "back": "Prepare one concrete example, one tradeoff, and one follow-up risk for: React",
             "requirement_ids": [
               "r1"
             ]
@@ -108,7 +108,7 @@
           "days": [
             {
               "day": 1,
-              "focus": "technical",
+              "focus": "Technical depth prep",
               "question_ids": [
                 "q1"
               ],
@@ -116,7 +116,7 @@
             },
             {
               "day": 2,
-              "focus": "behavioural",
+              "focus": "Behavioral stories prep",
               "question_ids": [
                 "q2"
               ],
@@ -124,7 +124,7 @@
             },
             {
               "day": 3,
-              "focus": "technical",
+              "focus": "Technical depth prep",
               "question_ids": [
                 "q3"
               ],
@@ -161,7 +161,7 @@
           "role": "Frontend Engineer",
           "location": "",
           "jd_chars": 34,
-          "researched_at": "2026-09-04T12:30:20.262Z",
+          "researched_at": "2026-09-04T12:54:21.824Z",
           "pages_used": []
         },
         "company_brief": {
@@ -189,7 +189,7 @@
               "r1"
             ],
             "category": "technical",
-            "prompt": "Walk through a concrete project or implementation where you used \"know React\", including decisions, tradeoffs, failure modes, and how you would explain it in this interview.",
+            "prompt": "Walk through a concrete implementation where you used \"know React\". Focus on architecture, decisions, tradeoffs, failure modes, and how you measured success.",
             "answer_outline": "Requirement tested: r1 - know React. Why it matters: this must requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"know React\".",
             "difficulty": 2
           }
@@ -209,7 +209,7 @@
           "days": [
             {
               "day": 1,
-              "focus": "technical",
+              "focus": "Technical depth prep",
               "question_ids": [
                 "q1"
               ],

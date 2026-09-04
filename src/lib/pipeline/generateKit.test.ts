@@ -97,6 +97,37 @@ describe("generateKit", () => {
     expect(kit.questions[0]?.answer_outline).toContain("Requirement tested");
   });
 
+  it("excludes location, experience-range, salary, notice, and office-mode artifacts", async () => {
+    const kit = await generateKit({
+      jd: [
+        "Technical Implementation Manager",
+        "Location: Bangalore, Gurgaon, Pune",
+        "Experience: 4-7 Years",
+        "Salary: Not disclosed",
+        "Notice Period: Immediate preferred",
+        "Work Mode: Hybrid",
+        "Employment Type: Full-time",
+        "Responsibilities:",
+        "Lead end-to-end implementation and delivery of software products for enterprise customers.",
+        "Conduct project reviews and provide executive-level updates.",
+      ].join("\n"),
+      company_url: "https://www.unifyapps.com/",
+      days: 3,
+      research: noResearch,
+    });
+    const text = JSON.stringify({
+      requirements: kit.role.requirements,
+      questions: kit.questions,
+      flashcards: kit.flashcards,
+    });
+
+    expect(kit.role.title).toBe("Technical Implementation Manager");
+    expect(text).not.toMatch(/Bangalore|Gurgaon|Pune|4-7 Years|Salary|Notice Period|Work Mode|Employment Type/i);
+    expect(kit.role.requirements.map((requirement) => requirement.text)).toContain(
+      "Lead end-to-end implementation and delivery of software products for enterprise customers",
+    );
+  });
+
   it("preserves the exact requested day count for thin 60-day inputs", async () => {
     const kit = await generateKit({
       ...(thinCase as BatchCaseInput),

@@ -63,6 +63,8 @@ describe("schedule", () => {
     expect(schedule.days[0]?.question_ids).toEqual(["q1"]);
     expect(schedule.days[1]?.question_ids).toEqual(["q2"]);
     expect(schedule.days[2]?.question_ids).toEqual(["q3"]);
+    expect(schedule.days[0]?.focus).toBe("Technical depth prep");
+    expect(schedule.days[1]?.focus).toBe("Behavioral stories prep");
   });
 
   it("handles a thin JD with one requirement", () => {
