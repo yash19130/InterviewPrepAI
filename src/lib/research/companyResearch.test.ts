@@ -14,6 +14,7 @@ describe("researchCompany", () => {
 
   it("blocks localhost and private IP hosts before fetching in production", async () => {
     const originalEnv = process.env.NODE_ENV;
+    // @ts-expect-error - overriding read-only NODE_ENV for test
     process.env.NODE_ENV = "production";
     try {
       const fetchImpl = vi.fn<typeof fetch>();
@@ -25,6 +26,7 @@ describe("researchCompany", () => {
       expect(result.sources).toEqual([]);
       expect(result.errors[0]).toContain("blocked private or local host");
     } finally {
+      // @ts-expect-error - restoring read-only NODE_ENV after test
       process.env.NODE_ENV = originalEnv;
     }
   });
