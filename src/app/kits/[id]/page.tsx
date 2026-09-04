@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { ProtectedRoute } from "@/components/protected-route";
 import { apiFetch, type KitResponse } from "@/lib/client/api";
@@ -25,12 +25,24 @@ export default function KitDetailPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState("");
   const [confidence, setConfidence] = useState<Record<string, Confidence>>({});
+  const kitRef = useRef<Kit | null>(null);
+  const metadataRef = useRef<KitEditMetadata | null>(null);
+
+  function applyKit(nextKit: Kit | null) {
+    kitRef.current = nextKit;
+    setKit(nextKit);
+  }
+
+  function applyMetadata(nextMetadata: KitEditMetadata | null) {
+    metadataRef.current = nextMetadata;
+    setMetadata(nextMetadata);
+  }
 
   useEffect(() => {
     apiFetch<KitResponse>(`/api/kits/${params.id}`)
       .then((response) => {
-        setKit(response.currentKit);
-        setMetadata(response.metadata);
+        applyKit(response.currentKit);
+        applyMetadata(response.metadata);
       })
       .catch((loadError) =>
         setError(loadError instanceof Error ? loadError.message : "Could not load kit."),
@@ -66,8 +78,11 @@ export default function KitDetailPage() {
   }, [confidence, kit]);
   const redditInsight = useMemo(() => kit ? getRedditInsight(kit) : null, [kit]);
 
-  async function saveKit(nextKit = kit, nextMetadata = metadata) {
-    if (!nextKit || !nextMetadata) {
+  async function saveKit(nextKit?: Kit | null, nextMetadata?: KitEditMetadata | null) {
+    const kitToSave = nextKit ?? kitRef.current;
+    const metadataToSave = nextMetadata ?? metadataRef.current;
+
+    if (!kitToSave || !metadataToSave) {
       return;
     }
 
@@ -78,12 +93,12 @@ export default function KitDetailPage() {
       const response = await apiFetch<KitResponse>(`/api/kits/${params.id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          kit: nextKit,
-          metadata: nextMetadata,
+          kit: kitToSave,
+          metadata: metadataToSave,
         }),
       });
-      setKit(response.currentKit);
-      setMetadata(response.metadata);
+      applyKit(response.currentKit);
+      applyMetadata(response.metadata);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Could not save kit.");
     } finally {
@@ -99,8 +114,8 @@ export default function KitDetailPage() {
       const response = await apiFetch<KitResponse>(`/api/kits/${params.id}/regenerate`, {
         method: "POST",
       });
-      setKit(response.currentKit);
-      setMetadata(response.metadata);
+      applyKit(response.currentKit);
+      applyMetadata(response.metadata);
     } catch (regenerateError) {
       setError(
         regenerateError instanceof Error ? regenerateError.message : "Could not regenerate kit.",
@@ -119,13 +134,16 @@ export default function KitDetailPage() {
       return;
     }
 
-    setKit({
+    const nextKit = {
       ...kit,
       questions: kit.questions.map((question) =>
         question.id === questionId ? { ...question, [field]: value } : question,
       ),
-    });
-    setMetadata(markQuestionEdited(metadata, questionId, field));
+    };
+    const nextMetadata = markQuestionEdited(metadata, questionId, field);
+
+    applyKit(nextKit);
+    applyMetadata(nextMetadata);
   }
 
   function updateFlashcard(
@@ -137,13 +155,16 @@ export default function KitDetailPage() {
       return;
     }
 
-    setKit({
+    const nextKit = {
       ...kit,
       flashcards: kit.flashcards.map((flashcard) =>
         flashcard.id === flashcardId ? { ...flashcard, [field]: value } : flashcard,
       ),
-    });
-    setMetadata(markFlashcardEdited(metadata, flashcardId, field));
+    };
+    const nextMetadata = markFlashcardEdited(metadata, flashcardId, field);
+
+    applyKit(nextKit);
+    applyMetadata(nextMetadata);
   }
 
   function updateSchedule(day: number, focus: string) {
@@ -151,7 +172,7 @@ export default function KitDetailPage() {
       return;
     }
 
-    setKit({
+    const nextKit = {
       ...kit,
       schedule: {
         ...kit.schedule,
@@ -159,27 +180,11 @@ export default function KitDetailPage() {
           scheduleDay.day === day ? { ...scheduleDay, focus } : scheduleDay,
         ),
       },
-    });
-    setMetadata(markScheduleEdited(metadata, day));
-  }
+    };
+    const nextMetadata = markScheduleEdited(metadata, day);
 
-  function togglePinnedQuestion(questionId: string) {
-    if (!metadata) {
-      return;
-    }
-
-    const pinned = new Set(metadata.pinnedQuestionIds);
-
-    if (pinned.has(questionId)) {
-      pinned.delete(questionId);
-    } else {
-      pinned.add(questionId);
-    }
-
-    setMetadata({
-      ...metadata,
-      pinnedQuestionIds: Array.from(pinned).sort(),
-    });
+    applyKit(nextKit);
+    applyMetadata(nextMetadata);
   }
 
   function downloadJson() {
@@ -306,13 +311,6 @@ export default function KitDetailPage() {
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                           {question.id} · {question.category} · difficulty {question.difficulty}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => togglePinnedQuestion(question.id)}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-100"
-                        >
-                          {metadata.pinnedQuestionIds.includes(question.id) ? "Pinned" : "Pin"}
-                        </button>
                       </div>
                       <textarea
                         value={question.prompt}

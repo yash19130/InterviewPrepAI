@@ -41,6 +41,62 @@ describe("generateKit", () => {
     );
   });
 
+  it("infers role title from JD header and company from URL domain", async () => {
+    const kit = await generateKit({
+      jd: "Principal Backend Engineer - Remote\nRequired: 8+ years with Node.js APIs.\nMust own database performance.",
+      company_url: "https://acme-cloud.io/jobs/123",
+      days: 3,
+      research: noResearch,
+    });
+
+    expect(kit.role.title).toBe("Principal Backend Engineer");
+    expect(kit.source.role).toBe("Principal Backend Engineer");
+    expect(kit.source.company).toBe("Acme Cloud");
+  });
+
+  it("infers a reasonable non-generic role title from JD skills when no header exists", async () => {
+    const kit = await generateKit({
+      jd: "We need someone to build React and Next.js user interfaces, integrate APIs, and improve accessibility.\nMust know TypeScript.",
+      company_url: "https://example.com",
+      days: 2,
+      research: noResearch,
+    });
+
+    expect(kit.role.title).toBe("Frontend Engineer");
+    expect(kit.role.title).not.toMatch(/interview preparation kit/i);
+  });
+
+  it("replaces weak generic LLM questions with requirement-specific prep questions", async () => {
+    const weakAdapter: JsonLlmAdapter = {
+      async generateJson<T>({ schemaName, schema }: GenerateJsonInput<T>) {
+        if (schemaName === "QuestionDrafts") {
+          return schema.parse([
+            {
+              requirement_ids: ["r1"],
+              category: "behavioural",
+              prompt: "Tell me about yourself.",
+              answer_outline: "Give a good answer.",
+              difficulty: 2,
+            },
+          ]);
+        }
+
+        return schema.parse([]);
+      },
+    };
+
+    const kit = await generateKit({
+      jd: "Frontend Engineer\nRequired: React performance optimization.",
+      company_url: "https://example.com",
+      days: 1,
+      llm: weakAdapter,
+      research: noResearch,
+    });
+
+    expect(kit.questions[0]?.prompt).toContain("React performance optimization");
+    expect(kit.questions[0]?.answer_outline).toContain("Requirement tested");
+  });
+
   it("preserves the exact requested day count for thin 60-day inputs", async () => {
     const kit = await generateKit({
       ...(thinCase as BatchCaseInput),

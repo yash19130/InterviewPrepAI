@@ -152,6 +152,111 @@ describe("researchCompany", () => {
     expect(result.notes).toContain("System design");
   });
 
+  it("uses Apify Reddit scraper before Reddit public search when configured", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      if (input.toString() === "https://acme.com/") {
+        return new Response(
+          "<html><head><title>Acme</title></head><body>Acme product page.</body></html>",
+          { headers: { "content-type": "text/html" } },
+        );
+      }
+
+      return new Response("", { status: 404 });
+    });
+    const apifyClient = {
+      actor: vi.fn(() => ({
+        call: vi.fn(async () => ({ defaultDatasetId: "dataset-1" })),
+      })),
+      dataset: vi.fn(() => ({
+        listItems: vi.fn(async () => ({
+          items: [
+            {
+              title: "Acme interview experience",
+              body: "Phone screen and onsite loop.",
+              url: "https://www.reddit.com/r/interviews/comments/1/acme/",
+              subreddit: "r/interviews",
+            },
+          ],
+        })),
+      })),
+    };
+
+    const result = await researchCompanyAndDiscussions("https://acme.com/", {
+      fetchImpl,
+      apifyClient,
+    });
+
+    expect(apifyClient.actor).toHaveBeenCalledWith("trudax/reddit-scraper");
+    expect(fetchImpl).not.toHaveBeenCalledWith(
+      expect.stringContaining("https://www.reddit.com/search.json"),
+      expect.anything(),
+    );
+    expect(result.sources.filter((source) => source.kind === "discussion")).toEqual([
+      {
+        kind: "discussion",
+        notes: "Phone screen and onsite loop. r/interviews",
+        title: "Acme interview experience",
+        url: "https://www.reddit.com/r/interviews/comments/1/acme/",
+      },
+    ]);
+  });
+
+  it("falls back to Reddit public search when Apify finds no discussion pages", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = input.toString();
+
+      if (url === "https://acme.com/") {
+        return new Response(
+          "<html><head><title>Acme</title></head><body>Acme product page.</body></html>",
+          { headers: { "content-type": "text/html" } },
+        );
+      }
+
+      if (url.startsWith("https://www.reddit.com/search.json")) {
+        return Response.json({
+          data: {
+            children: [
+              {
+                data: {
+                  title: "Acme interview experience",
+                  selftext: "Take-home then onsite.",
+                  permalink: "/r/interviews/comments/1/acme_interview/",
+                },
+              },
+            ],
+          },
+        });
+      }
+
+      if (url.includes("/r/interviews/comments/1/acme_interview/")) {
+        return new Response(
+          "<html><head><title>Discussion</title></head><body>Take-home then onsite.</body></html>",
+          { headers: { "content-type": "text/html" } },
+        );
+      }
+
+      return new Response("", { status: 404 });
+    });
+    const apifyClient = {
+      actor: vi.fn(() => ({
+        call: vi.fn(async () => ({ defaultDatasetId: "dataset-1" })),
+      })),
+      dataset: vi.fn(() => ({
+        listItems: vi.fn(async () => ({ items: [] })),
+      })),
+    };
+
+    const result = await researchCompanyAndDiscussions("https://acme.com/", {
+      fetchImpl,
+      apifyClient,
+    });
+
+    expect(result.sources.map((source) => source.url)).toContain(
+      "https://www.reddit.com/r/interviews/comments/1/acme_interview/",
+    );
+    expect(result.notes).toContain("Take-home");
+  });
+
   it("continues when Reddit search finds no interview discussion pages", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (input) => {
       const url = input.toString();

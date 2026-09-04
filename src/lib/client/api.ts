@@ -1,5 +1,6 @@
 "use client";
 
+import { onAuthStateChanged, type Auth, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import type { Kit } from "@/lib/schemas";
 import type { KitEditMetadata } from "@/lib/kits/preservation";
@@ -28,7 +29,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     throw new Error("Firebase client environment variables are not configured.");
   }
 
-  const user = auth.currentUser;
+  const user = auth.currentUser ?? await waitForAuthUser(auth);
 
   if (!user) {
     throw new Error("You must be logged in.");
@@ -50,4 +51,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
 
   return response.json() as Promise<T>;
+}
+
+function waitForAuthUser(auth: Auth): Promise<User | null> {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      resolve(user);
+    });
+  });
 }

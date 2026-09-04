@@ -1,0 +1,228 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-09-04T12:30:20.263Z",
+  "kits": [
+    {
+      "id": "case-01",
+      "status": "ok",
+      "kit": {
+        "source": {
+          "company": "Localhost",
+          "company_url": "http://localhost:8099/acme/",
+          "role": "Senior Frontend Engineer",
+          "location": "",
+          "jd_chars": 122,
+          "researched_at": "2026-09-04T12:30:20.233Z",
+          "pages_used": []
+        },
+        "company_brief": {
+          "summary": "Company research failed: Company URL points to a blocked private or local host. Fetch failed for https://www.reddit.com/search.json?q=%22localhost%22+interview+experience&limit=10&sort=relevance&t=all with status 403. Generate preparation from the JD only.",
+          "what_they_do": "Could not retrieve company data.",
+          "sources": []
+        },
+        "role": {
+          "title": "Senior Frontend Engineer",
+          "seniority": "senior",
+          "responsibilities": [],
+          "requirements": [
+            {
+              "id": "r1",
+              "text": "5+ years with React",
+              "kind": "technical",
+              "priority": "must"
+            },
+            {
+              "id": "r2",
+              "text": "collaborate with product managers",
+              "kind": "behavioural",
+              "priority": "must"
+            },
+            {
+              "id": "r3",
+              "text": "GraphQL experience",
+              "kind": "technical",
+              "priority": "nice"
+            }
+          ]
+        },
+        "questions": [
+          {
+            "id": "q1",
+            "requirement_ids": [
+              "r1"
+            ],
+            "category": "technical",
+            "prompt": "Walk through a concrete project or implementation where you used \"5+ years with React\", including decisions, tradeoffs, failure modes, and how you would explain it in this interview.",
+            "answer_outline": "Requirement tested: r1 - 5+ years with React. Why it matters: this must requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"5+ years with React\".",
+            "difficulty": 3
+          },
+          {
+            "id": "q2",
+            "requirement_ids": [
+              "r2"
+            ],
+            "category": "behavioural",
+            "prompt": "Describe a concrete role-specific example that demonstrates \"collaborate with product managers\". Include the situation, actions, tradeoffs, outcome, and what you would do differently.",
+            "answer_outline": "Requirement tested: r2 - collaborate with product managers. Why it matters: this must requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"collaborate with product managers\".",
+            "difficulty": 2
+          },
+          {
+            "id": "q3",
+            "requirement_ids": [
+              "r3"
+            ],
+            "category": "technical",
+            "prompt": "Walk through a concrete project or implementation where you used \"GraphQL experience\", including decisions, tradeoffs, failure modes, and how you would explain it in this interview.",
+            "answer_outline": "Requirement tested: r3 - GraphQL experience. Why it matters: this nice requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"GraphQL experience\".",
+            "difficulty": 1
+          }
+        ],
+        "flashcards": [
+          {
+            "id": "f1",
+            "front": "5+ years with React",
+            "back": "Prepare one concrete example, one tradeoff, and one follow-up risk for: 5+ years with React",
+            "requirement_ids": [
+              "r1"
+            ]
+          },
+          {
+            "id": "f2",
+            "front": "collaborate with product managers",
+            "back": "Prepare one concrete example, one tradeoff, and one follow-up risk for: collaborate with product managers",
+            "requirement_ids": [
+              "r2"
+            ]
+          },
+          {
+            "id": "f3",
+            "front": "GraphQL experience",
+            "back": "Prepare one concrete example, one tradeoff, and one follow-up risk for: GraphQL experience",
+            "requirement_ids": [
+              "r3"
+            ]
+          }
+        ],
+        "schedule": {
+          "days_available": 5,
+          "days": [
+            {
+              "day": 1,
+              "focus": "technical",
+              "question_ids": [
+                "q1"
+              ],
+              "minutes": 60
+            },
+            {
+              "day": 2,
+              "focus": "behavioural",
+              "question_ids": [
+                "q2"
+              ],
+              "minutes": 60
+            },
+            {
+              "day": 3,
+              "focus": "technical",
+              "question_ids": [
+                "q3"
+              ],
+              "minutes": 60
+            },
+            {
+              "day": 4,
+              "focus": "Review and rest",
+              "question_ids": [],
+              "minutes": 0
+            },
+            {
+              "day": 5,
+              "focus": "Review and rest",
+              "question_ids": [],
+              "minutes": 0
+            }
+          ]
+        },
+        "coverage": {
+          "uncovered_requirement_ids": [],
+          "passes": 2
+        }
+      },
+      "error": null
+    },
+    {
+      "id": "case-02",
+      "status": "ok",
+      "kit": {
+        "source": {
+          "company": "",
+          "company_url": "not a url",
+          "role": "Frontend Engineer",
+          "location": "",
+          "jd_chars": 34,
+          "researched_at": "2026-09-04T12:30:20.262Z",
+          "pages_used": []
+        },
+        "company_brief": {
+          "summary": "Company research failed: Invalid company URL. Could not infer company name for public discussion search. Generate preparation from the JD only.",
+          "what_they_do": "Could not retrieve company data.",
+          "sources": []
+        },
+        "role": {
+          "title": "Frontend Engineer",
+          "seniority": "",
+          "responsibilities": [],
+          "requirements": [
+            {
+              "id": "r1",
+              "text": "know React",
+              "kind": "technical",
+              "priority": "must"
+            }
+          ]
+        },
+        "questions": [
+          {
+            "id": "q1",
+            "requirement_ids": [
+              "r1"
+            ],
+            "category": "technical",
+            "prompt": "Walk through a concrete project or implementation where you used \"know React\", including decisions, tradeoffs, failure modes, and how you would explain it in this interview.",
+            "answer_outline": "Requirement tested: r1 - know React. Why it matters: this must requirement is explicitly present in the JD and should be demonstrated with direct evidence. Company context: no retrieved company sources are available. Strong prep direction: prepare a specific example, the implementation details, measurable impact, tradeoffs, failure modes, and follow-up questions for \"know React\".",
+            "difficulty": 2
+          }
+        ],
+        "flashcards": [
+          {
+            "id": "f1",
+            "front": "know React",
+            "back": "Prepare one concrete example, one tradeoff, and one follow-up risk for: know React",
+            "requirement_ids": [
+              "r1"
+            ]
+          }
+        ],
+        "schedule": {
+          "days_available": 1,
+          "days": [
+            {
+              "day": 1,
+              "focus": "technical",
+              "question_ids": [
+                "q1"
+              ],
+              "minutes": 60
+            }
+          ]
+        },
+        "coverage": {
+          "uncovered_requirement_ids": [],
+          "passes": 2
+        }
+      },
+      "error": null
+    }
+  ]
+}
